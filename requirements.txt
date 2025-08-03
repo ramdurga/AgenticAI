@@ -1,31 +1,4 @@
-# Core dependencies for agentic AI example
-requests>=2.31.0
-beautifulsoup4>=4.12.0
-openai>=1.0.0
+# MCP (Model Context Protocol) Example Dependencies
+anthropic>=0.7.0
 python-dotenv>=1.0.0
-
-# Data processing and analysis
-pandas>=2.0.0
-numpy>=1.24.0
-matplotlib>=3.7.0
-
-# Web scraping and API interactions
-selenium>=4.15.0
-aiohttp>=3.8.0
-
-# Natural language processing
-nltk>=3.8.0
-textblob>=0.17.0
-
-# File and system operations
-pathlib2>=2.3.0
-pyyaml>=6.0
-
-# Development and testing
-pytest>=7.4.0
-black>=23.0.0
-flake8>=6.0.0
-
-# Optional: For advanced features
-# transformers>=4.30.0  # Uncomment for advanced NLP
-# torch>=2.0.0         # Uncomment for deep learning features 
+requests>=2.31.0 

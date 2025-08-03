@@ -3,513 +3,349 @@ Agentic AI Agent - A simple implementation for beginners
 """
 
 import json
-import logging
-import time
-from typing import List, Dict, Any, Optional
-from dataclasses import dataclass
-from datetime import datetime
 import os
-from pathlib import Path
+from datetime import datetime
+from typing import List, Dict, Any, Optional
+from dataclasses import dataclass, asdict
+from dotenv import load_dotenv
+import anthropic
 
-# Import our tools
-from tools import ToolRegistry, web_search, file_operations, code_executor, data_analyzer
-
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
+# Load environment variables
+load_dotenv()
 
 @dataclass
 class Task:
     """Represents a task for the agent to complete"""
-    goal: str
-    constraints: List[str] = None
-    success_criteria: List[str] = None
+    id: str
+    description: str
     priority: str = "medium"
-    created_at: datetime = None
+    status: str = "pending"
+    created_at: str = None
     
     def __post_init__(self):
-        if self.constraints is None:
-            self.constraints = []
-        if self.success_criteria is None:
-            self.success_criteria = []
         if self.created_at is None:
-            self.created_at = datetime.now()
-
+            self.created_at = datetime.now().isoformat()
 
 @dataclass
 class Plan:
-    """Represents a plan with steps to achieve a goal"""
-    steps: List[str]
-    estimated_time: str
-    resources_needed: List[str]
-    risk_level: str = "medium"
-
+    """Represents a plan with steps to complete a task"""
+    task_id: str
+    steps: List[Dict[str, Any]]
+    estimated_time: str = "unknown"
+    confidence: float = 0.8
 
 @dataclass
 class Result:
     """Represents the result of a task execution"""
+    task_id: str
     success: bool
-    output: Any
+    output: str
+    tools_used: List[str]
     execution_time: float
     errors: List[str] = None
-    learnings: List[str] = None
     
     def __post_init__(self):
         if self.errors is None:
             self.errors = []
-        if self.learnings is None:
-            self.learnings = []
-
 
 class Memory:
-    """Simple memory system for the agent"""
+    """Memory system for the agent"""
     
     def __init__(self):
-        self.short_term = {}  # Current task context
-        self.long_term = {}   # Learned patterns
-        self.episodic = []    # Task memories
-        
-    def store_short_term(self, key: str, value: Any):
-        """Store information for current task"""
-        self.short_term[key] = value
-        
-    def get_short_term(self, key: str) -> Any:
-        """Retrieve short-term memory"""
-        return self.short_term.get(key)
-        
-    def store_long_term(self, pattern: str, outcome: str):
-        """Store learned patterns"""
-        self.long_term[pattern] = outcome
-        
-    def get_long_term(self, pattern: str) -> Optional[str]:
-        """Retrieve long-term memory"""
-        return self.long_term.get(pattern)
-        
-    def store_episode(self, task: Task, result: Result):
-        """Store a completed task episode"""
-        episode = {
-            "task": task,
-            "result": result,
-            "timestamp": datetime.now()
+        self.short_term = []  # Recent interactions
+        self.long_term = {}   # Important facts and patterns
+        self.episodic = []    # Past experiences
+    
+    def add_to_short_term(self, interaction: Dict[str, Any]):
+        """Add recent interaction to short-term memory"""
+        self.short_term.append({
+            'timestamp': datetime.now().isoformat(),
+            'interaction': interaction
+        })
+        # Keep only last 10 interactions
+        if len(self.short_term) > 10:
+            self.short_term.pop(0)
+    
+    def add_to_long_term(self, key: str, value: Any):
+        """Add important information to long-term memory"""
+        self.long_term[key] = {
+            'value': value,
+            'timestamp': datetime.now().isoformat(),
+            'access_count': 0
         }
-        self.episodic.append(episode)
+    
+    def get_from_long_term(self, key: str) -> Optional[Any]:
+        """Retrieve information from long-term memory"""
+        if key in self.long_term:
+            self.long_term[key]['access_count'] += 1
+            return self.long_term[key]['value']
+        return None
+    
+    def add_episode(self, episode: Dict[str, Any]):
+        """Add a complete episode to episodic memory"""
+        self.episodic.append({
+            'timestamp': datetime.now().isoformat(),
+            'episode': episode
+        })
+    
+    def get_relevant_memories(self, context: str) -> List[Dict[str, Any]]:
+        """Get memories relevant to current context"""
+        relevant = []
         
-    def get_similar_episodes(self, task_goal: str) -> List[Dict]:
-        """Find similar past episodes"""
-        # Simple keyword matching for now
-        similar = []
-        for episode in self.episodic:
-            if any(word in episode["task"].goal.lower() 
-                   for word in task_goal.lower().split()):
-                similar.append(episode)
-        return similar
-
+        # Check short-term memory
+        for memory in self.short_term[-5:]:  # Last 5 interactions
+            relevant.append(memory)
+        
+        # Check long-term memory for relevant keys
+        for key, value in self.long_term.items():
+            if context.lower() in key.lower():
+                relevant.append(value)
+        
+        return relevant
 
 class Agent:
-    """
-    A simple agentic AI agent that can:
-    - Analyze tasks
-    - Create plans
-    - Execute plans
-    - Learn from results
-    """
+    """Main agent class with autonomous capabilities"""
     
-    def __init__(self, name: str = "Agent", personality: str = "helpful"):
+    def __init__(self, name: str = "AgenticAI", personality: str = "helpful"):
         self.name = name
         self.personality = personality
         self.memory = Memory()
-        self.tools = ToolRegistry()
-        self.current_task = None
-        self.current_plan = None
+        self.tools = {}
+        self.learning_rate = 0.1
         
-        # Agent state
-        self.is_busy = False
-        self.confidence_level = 0.5
-        self.success_rate = 0.0
-        self.tasks_completed = 0
-        
-        logger.info(f"🤖 {self.name} initialized with {self.personality} personality")
-        
-    def analyze_task(self, task_input: str) -> Task:
-        """
-        Analyze a task and create a structured Task object
-        """
-        logger.info(f"🔍 Analyzing task: {task_input}")
-        
-        # Simple task analysis (in a real system, this would use NLP)
-        task = Task(goal=task_input)
-        
-        # Extract constraints and success criteria based on keywords
-        if "research" in task_input.lower():
-            task.constraints.append("Must use reliable sources")
-            task.success_criteria.append("Provide comprehensive summary")
-            task.success_criteria.append("Include multiple perspectives")
-            
-        if "code" in task_input.lower() or "program" in task_input.lower():
-            task.constraints.append("Code must be functional")
-            task.success_criteria.append("Include comments and documentation")
-            
-        if "analyze" in task_input.lower() or "data" in task_input.lower():
-            task.constraints.append("Use appropriate analysis methods")
-            task.success_criteria.append("Provide clear insights")
-            
-        self.current_task = task
-        self.memory.store_short_term("current_task", task)
-        
-        logger.info(f"✅ Task analyzed: {len(task.constraints)} constraints, {len(task.success_criteria)} success criteria")
-        return task
-        
-    def create_plan(self) -> Plan:
-        """
-        Create a plan to achieve the current task
-        """
-        if not self.current_task:
-            raise ValueError("No current task to plan for")
-            
-        logger.info(f"📋 Creating plan for: {self.current_task.goal}")
-        
-        # Check memory for similar tasks
-        similar_episodes = self.memory.get_similar_episodes(self.current_task.goal)
-        
-        steps = []
-        if similar_episodes:
-            # Use learned patterns
-            logger.info(f"📚 Found {len(similar_episodes)} similar past experiences")
-            steps = self._create_plan_from_experience(similar_episodes)
+        # Initialize Claude client
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        if api_key:
+            self.claude_client = anthropic.Anthropic(api_key=api_key)
         else:
-            # Create new plan based on task type
-            steps = self._create_plan_from_scratch()
-            
-        plan = Plan(
-            steps=steps,
-            estimated_time="5-15 minutes",
-            resources_needed=["Internet access", "Basic tools"],
-            risk_level="low"
+            self.claude_client = None
+            print("⚠️  Warning: No ANTHROPIC_API_KEY found. Some features will be limited.")
+    
+    def analyze_task(self, task_description: str) -> Task:
+        """Analyze and create a task from description"""
+        task_id = f"task_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        
+        # Use Claude to analyze task if available
+        if self.claude_client:
+            try:
+                response = self.claude_client.messages.create(
+                    model="claude-3-haiku-20240307",
+                    max_tokens=1000,
+                    messages=[{
+                        "role": "user",
+                        "content": f"Analyze this task and provide a structured response:\n{task_description}\n\nProvide: 1) Priority (high/medium/low), 2) Key requirements, 3) Estimated complexity"
+                    }]
+                )
+                analysis = response.content[0].text
+                # Extract priority from analysis
+                if "high" in analysis.lower():
+                    priority = "high"
+                elif "low" in analysis.lower():
+                    priority = "low"
+                else:
+                    priority = "medium"
+            except Exception as e:
+                print(f"⚠️  Claude analysis failed: {e}")
+                priority = "medium"
+        else:
+            priority = "medium"
+        
+        task = Task(
+            id=task_id,
+            description=task_description,
+            priority=priority
         )
         
-        self.current_plan = plan
-        self.memory.store_short_term("current_plan", plan)
+        # Store in memory
+        self.memory.add_to_short_term({
+            'type': 'task_analysis',
+            'task_id': task_id,
+            'description': task_description,
+            'priority': priority
+        })
         
-        logger.info(f"✅ Plan created with {len(steps)} steps")
-        return plan
+        return task
+    
+    def create_plan(self, task: Task) -> Plan:
+        """Create a plan to complete the task"""
+        steps = []
         
-    def _create_plan_from_experience(self, episodes: List[Dict]) -> List[str]:
-        """Create plan based on past successful experiences"""
-        # For now, use a simple approach
-        return [
-            "1. Review past successful approaches",
-            "2. Adapt proven strategies to current task",
-            "3. Execute with learned optimizations",
-            "4. Document new learnings"
-        ]
-        
-    def _create_plan_from_scratch(self) -> List[str]:
-        """Create a new plan from scratch"""
-        task_goal = self.current_task.goal.lower()
-        
-        if "research" in task_goal:
-            return [
-                "1. Define research scope and objectives",
-                "2. Search for relevant information sources",
-                "3. Gather and evaluate information",
-                "4. Synthesize findings into coherent summary",
-                "5. Present results with recommendations"
-            ]
-        elif "code" in task_goal or "program" in task_goal:
-            return [
-                "1. Understand requirements and constraints",
-                "2. Design solution architecture",
-                "3. Implement core functionality",
-                "4. Test and debug code",
-                "5. Document and optimize"
-            ]
-        elif "analyze" in task_goal or "data" in task_goal:
-            return [
-                "1. Understand data structure and format",
-                "2. Clean and prepare data",
-                "3. Apply appropriate analysis methods",
-                "4. Generate insights and visualizations",
-                "5. Present findings and recommendations"
-            ]
+        if self.claude_client:
+            try:
+                response = self.claude_client.messages.create(
+                    model="claude-3-haiku-20240307",
+                    max_tokens=1000,
+                    messages=[{
+                        "role": "user",
+                        "content": f"Create a step-by-step plan for this task:\n{task.description}\n\nProvide 3-5 clear steps with tool requirements."
+                    }]
+                )
+                plan_text = response.content[0].text
+                
+                # Parse plan into steps (simplified)
+                lines = plan_text.split('\n')
+                for line in lines:
+                    if line.strip() and any(keyword in line.lower() for keyword in ['step', '1.', '2.', '3.', '4.', '5.']):
+                        steps.append({
+                            'description': line.strip(),
+                            'tool_required': self._identify_tool(line),
+                            'status': 'pending'
+                        })
+            except Exception as e:
+                print(f"⚠️  Claude planning failed: {e}")
+                steps = self._create_default_plan(task)
         else:
-            # Generic plan
-            return [
-                "1. Understand the problem",
-                "2. Break down into manageable steps",
-                "3. Execute each step systematically",
-                "4. Verify results meet requirements",
-                "5. Document process and outcomes"
-            ]
-            
-    def execute_plan(self, plan: Optional[Plan] = None) -> Result:
-        """
-        Execute the current plan step by step
-        """
-        if plan is None:
-            plan = self.current_plan
-            
-        if not plan:
-            raise ValueError("No plan to execute")
-            
-        logger.info(f"🚀 Executing plan with {len(plan.steps)} steps")
+            steps = self._create_default_plan(task)
         
-        start_time = time.time()
+        plan = Plan(
+            task_id=task.id,
+            steps=steps
+        )
+        
+        return plan
+    
+    def _create_default_plan(self, task: Task) -> List[Dict[str, Any]]:
+        """Create a default plan when Claude is not available"""
+        return [
+            {
+                'description': f"Analyze task: {task.description}",
+                'tool_required': 'text_processor',
+                'status': 'pending'
+            },
+            {
+                'description': "Gather relevant information",
+                'tool_required': 'web_search',
+                'status': 'pending'
+            },
+            {
+                'description': "Process and synthesize results",
+                'tool_required': 'data_analyzer',
+                'status': 'pending'
+            }
+        ]
+    
+    def _identify_tool(self, step_description: str) -> str:
+        """Identify which tool is needed for a step"""
+        step_lower = step_description.lower()
+        
+        if any(word in step_lower for word in ['search', 'find', 'look up']):
+            return 'web_search'
+        elif any(word in step_lower for word in ['calculate', 'math', 'compute']):
+            return 'calculator'
+        elif any(word in step_lower for word in ['analyze', 'process', 'synthesize']):
+            return 'data_analyzer'
+        elif any(word in step_lower for word in ['file', 'read', 'write']):
+            return 'file_operations'
+        elif any(word in step_lower for word in ['code', 'program', 'execute']):
+            return 'code_executor'
+        else:
+            return 'text_processor'
+    
+    def execute_plan(self, task: Task, plan: Plan) -> Result:
+        """Execute the plan and return results"""
+        start_time = datetime.now()
+        tools_used = []
         errors = []
-        learnings = []
-        output = {}
+        output_parts = []
         
-        self.is_busy = True
+        print(f"🤖 {self.name} executing plan for task: {task.description}")
         
-        try:
-            for i, step in enumerate(plan.steps, 1):
-                logger.info(f"📝 Step {i}: {step}")
-                
-                # Execute the step (simplified for demo)
-                step_result = self._execute_step(step)
-                
-                if step_result.get("success"):
-                    output[f"step_{i}"] = step_result["output"]
-                    if step_result.get("learning"):
-                        learnings.append(step_result["learning"])
+        for i, step in enumerate(plan.steps, 1):
+            print(f"  📋 Step {i}: {step['description']}")
+            
+            try:
+                if step['tool_required'] in self.tools:
+                    tool_result = self.tools[step['tool_required']](step['description'])
+                    output_parts.append(f"Step {i}: {tool_result}")
+                    tools_used.append(step['tool_required'])
+                    step['status'] = 'completed'
                 else:
-                    errors.append(f"Step {i} failed: {step_result.get('error', 'Unknown error')}")
+                    # Simulate tool execution
+                    simulated_result = self._simulate_tool_execution(step['tool_required'], step['description'])
+                    output_parts.append(f"Step {i}: {simulated_result}")
+                    tools_used.append(step['tool_required'])
+                    step['status'] = 'completed'
                     
-                # Small delay to simulate processing
-                time.sleep(0.5)
-                
-        except Exception as e:
-            errors.append(f"Execution failed: {str(e)}")
-            
-        finally:
-            self.is_busy = False
-            
-        execution_time = time.time() - start_time
-        success = len(errors) == 0
+            except Exception as e:
+                error_msg = f"Step {i} failed: {str(e)}"
+                errors.append(error_msg)
+                step['status'] = 'failed'
+                print(f"    ❌ {error_msg}")
+        
+        execution_time = (datetime.now() - start_time).total_seconds()
+        
+        # Determine success based on completed steps
+        success = len([s for s in plan.steps if s['status'] == 'completed']) > 0
         
         result = Result(
+            task_id=task.id,
             success=success,
-            output=output,
+            output="\n".join(output_parts),
+            tools_used=tools_used,
             execution_time=execution_time,
-            errors=errors,
-            learnings=learnings
+            errors=errors
         )
         
-        # Update agent statistics
-        self.tasks_completed += 1
-        if success:
-            self.success_rate = (self.success_rate * (self.tasks_completed - 1) + 1) / self.tasks_completed
-        else:
-            self.success_rate = (self.success_rate * (self.tasks_completed - 1)) / self.tasks_completed
-            
-        logger.info(f"✅ Plan execution completed. Success: {success}, Time: {execution_time:.2f}s")
+        # Learn from this execution
+        self._learn_from_execution(task, plan, result)
+        
         return result
-        
-    def _execute_step(self, step: str) -> Dict[str, Any]:
-        """
-        Execute a single step of the plan
-        """
-        step_lower = step.lower()
-        
-        # Simple step execution logic
-        if "search" in step_lower or "find" in step_lower:
-            return self._execute_search_step(step)
-        elif "analyze" in step_lower or "process" in step_lower:
-            return self._execute_analysis_step(step)
-        elif "code" in step_lower or "implement" in step_lower:
-            return self._execute_code_step(step)
-        elif "document" in step_lower or "present" in step_lower:
-            return self._execute_documentation_step(step)
-        else:
-            return self._execute_generic_step(step)
-            
-    def _execute_search_step(self, step: str) -> Dict[str, Any]:
-        """Execute a search-related step"""
-        try:
-            # Simulate web search
-            search_query = self._extract_search_query(step)
-            results = web_search(search_query)
-            return {
-                "success": True,
-                "output": f"Found {len(results)} relevant results for '{search_query}'",
-                "learning": "Web search is effective for gathering information"
-            }
-        except Exception as e:
-            return {"success": False, "error": str(e)}
-            
-    def _execute_analysis_step(self, step: str) -> Dict[str, Any]:
-        """Execute an analysis-related step"""
-        try:
-            # Simulate data analysis
-            analysis_result = data_analyzer("sample_data")
-            return {
-                "success": True,
-                "output": f"Analysis completed: {analysis_result}",
-                "learning": "Systematic analysis reveals important patterns"
-            }
-        except Exception as e:
-            return {"success": False, "error": str(e)}
-            
-    def _execute_code_step(self, step: str) -> Dict[str, Any]:
-        """Execute a coding-related step"""
-        try:
-            # Simulate code execution
-            code_result = code_executor("print('Hello, World!')")
-            return {
-                "success": True,
-                "output": f"Code executed successfully: {code_result}",
-                "learning": "Incremental development helps catch errors early"
-            }
-        except Exception as e:
-            return {"success": False, "error": str(e)}
-            
-    def _execute_documentation_step(self, step: str) -> Dict[str, Any]:
-        """Execute a documentation-related step"""
-        try:
-            # Simulate documentation
-            doc_result = file_operations.write_file("output.txt", "Task completed successfully")
-            return {
-                "success": True,
-                "output": f"Documentation created: {doc_result}",
-                "learning": "Good documentation helps future tasks"
-            }
-        except Exception as e:
-            return {"success": False, "error": str(e)}
-            
-    def _execute_generic_step(self, step: str) -> Dict[str, Any]:
-        """Execute a generic step"""
-        return {
-            "success": True,
-            "output": f"Completed: {step}",
-            "learning": "Systematic approach leads to better results"
+    
+    def _simulate_tool_execution(self, tool_name: str, description: str) -> str:
+        """Simulate tool execution when actual tools aren't available"""
+        simulations = {
+            'web_search': f"Simulated web search for: {description}",
+            'calculator': f"Simulated calculation for: {description}",
+            'data_analyzer': f"Simulated data analysis for: {description}",
+            'file_operations': f"Simulated file operation for: {description}",
+            'code_executor': f"Simulated code execution for: {description}",
+            'text_processor': f"Simulated text processing for: {description}"
         }
+        return simulations.get(tool_name, f"Simulated {tool_name} for: {description}")
+    
+    def _learn_from_execution(self, task: Task, plan: Plan, result: Result):
+        """Learn from task execution to improve future performance"""
+        # Store episode in memory
+        episode = {
+            'task': asdict(task),
+            'plan': asdict(plan),
+            'result': asdict(result),
+            'success_rate': 1.0 if result.success else 0.0
+        }
+        self.memory.add_episode(episode)
         
-    def _extract_search_query(self, step: str) -> str:
-        """Extract search query from step description"""
-        # Simple extraction - in reality, this would use NLP
-        words = step.split()
-        if "for" in words:
-            for_idx = words.index("for")
-            return " ".join(words[for_idx + 1:])
-        return "relevant information"
+        # Update long-term memory with patterns
+        if result.success:
+            self.memory.add_to_long_term(
+                f"successful_pattern_{task.description[:50]}",
+                {
+                    'tools_used': result.tools_used,
+                    'execution_time': result.execution_time,
+                    'success': True
+                }
+            )
         
-    def learn_from_results(self, result: Result):
-        """
-        Learn from the execution results and update memory
-        """
-        logger.info(f"🧠 Learning from results (success: {result.success})")
-        
-        if self.current_task:
-            # Store the episode in memory
-            self.memory.store_episode(self.current_task, result)
-            
-            # Extract patterns for long-term memory
-            if result.success:
-                pattern = f"Task type: {self._classify_task(self.current_task.goal)}"
-                outcome = "successful"
-                self.memory.store_long_term(pattern, outcome)
-                
-                # Update confidence based on success
-                self.confidence_level = min(1.0, self.confidence_level + 0.1)
-            else:
-                # Learn from failures
-                for error in result.errors:
-                    pattern = f"Error: {error}"
-                    outcome = "avoid"
-                    self.memory.store_long_term(pattern, outcome)
-                    
-                # Decrease confidence slightly
-                self.confidence_level = max(0.0, self.confidence_level - 0.05)
-                
-        # Store learnings
-        for learning in result.learnings:
-            self.memory.store_long_term(f"Learning: {learning}", "apply")
-            
-        logger.info(f"📚 Learning complete. Confidence: {self.confidence_level:.2f}")
-        
-    def _classify_task(self, task_goal: str) -> str:
-        """Classify the type of task"""
-        goal_lower = task_goal.lower()
-        
-        if "research" in goal_lower or "find" in goal_lower:
-            return "research"
-        elif "code" in goal_lower or "program" in goal_lower:
-            return "programming"
-        elif "analyze" in goal_lower or "data" in goal_lower:
-            return "analysis"
+        # Adjust learning rate based on success
+        if result.success:
+            self.learning_rate = min(self.learning_rate + 0.01, 0.2)
         else:
-            return "general"
-            
+            self.learning_rate = max(self.learning_rate - 0.01, 0.05)
+    
+    def register_tool(self, name: str, tool_function):
+        """Register a tool that the agent can use"""
+        self.tools[name] = tool_function
+        print(f"🔧 Tool registered: {name}")
+    
     def get_status(self) -> Dict[str, Any]:
         """Get current agent status"""
         return {
-            "name": self.name,
-            "personality": self.personality,
-            "is_busy": self.is_busy,
-            "confidence_level": self.confidence_level,
-            "success_rate": self.success_rate,
-            "tasks_completed": self.tasks_completed,
-            "current_task": self.current_task.goal if self.current_task else None,
-            "memory_size": {
-                "short_term": len(self.memory.short_term),
-                "long_term": len(self.memory.long_term),
-                "episodic": len(self.memory.episodic)
+            'name': self.name,
+            'personality': self.personality,
+            'learning_rate': self.learning_rate,
+            'tools_available': list(self.tools.keys()),
+            'memory_stats': {
+                'short_term_count': len(self.memory.short_term),
+                'long_term_count': len(self.memory.long_term),
+                'episodic_count': len(self.memory.episodic)
             }
-        }
-        
-    def reset(self):
-        """Reset the agent to initial state"""
-        self.current_task = None
-        self.current_plan = None
-        self.is_busy = False
-        self.memory.short_term.clear()
-        logger.info("🔄 Agent reset to initial state")
-
-
-# Convenience function to create and run an agent
-def run_agent_task(task_description: str, agent_name: str = "Agent") -> Result:
-    """
-    Convenience function to create an agent and run a task
-    """
-    agent = Agent(name=agent_name)
-    
-    # Analyze the task
-    task = agent.analyze_task(task_description)
-    
-    # Create a plan
-    plan = agent.create_plan()
-    
-    # Execute the plan
-    result = agent.execute_plan(plan)
-    
-    # Learn from results
-    agent.learn_from_results(result)
-    
-    return result
-
-
-if __name__ == "__main__":
-    # Example usage
-    print("🤖 Agentic AI Agent Demo")
-    print("=" * 40)
-    
-    agent = Agent("DemoAgent")
-    
-    # Example task
-    task_description = "Research the best programming languages for beginners"
-    
-    print(f"Task: {task_description}")
-    print()
-    
-    # Run the task
-    result = run_agent_task(task_description, "DemoAgent")
-    
-    print(f"Result: {'✅ Success' if result.success else '❌ Failed'}")
-    print(f"Execution time: {result.execution_time:.2f} seconds")
-    print(f"Output: {result.output}")
-    
-    if result.errors:
-        print(f"Errors: {result.errors}")
-        
-    if result.learnings:
-        print(f"Learnings: {result.learnings}") 
+        } 

@@ -7,7 +7,34 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from agent import Agent, run_agent_task
+from agent import Agent
+from tools import web_search, calculator, data_analyzer, file_operations, code_executor, text_processor
+
+
+def run_agent_task(task_description: str, agent_name: str = "Agent") -> object:
+    """
+    Convenience function to create an agent and run a task
+    """
+    agent = Agent(name=agent_name)
+    
+    # Register tools
+    agent.register_tool("web_search", web_search)
+    agent.register_tool("calculator", calculator)
+    agent.register_tool("data_analyzer", data_analyzer)
+    agent.register_tool("file_operations", file_operations)
+    agent.register_tool("code_executor", code_executor)
+    agent.register_tool("text_processor", text_processor)
+    
+    # Analyze the task
+    task = agent.analyze_task(task_description)
+    
+    # Create a plan
+    plan = agent.create_plan(task)
+    
+    # Execute the plan
+    result = agent.execute_plan(task, plan)
+    
+    return result
 
 
 def simple_research_example():
@@ -29,8 +56,8 @@ def simple_research_example():
     print(f"  ⏱️  Time: {result.execution_time:.2f} seconds")
     print(f"  📝 Output: {result.output}")
     
-    if result.learnings:
-        print(f"  🧠 Learnings: {result.learnings}")
+    if result.errors:
+        print(f"  ❌ Errors: {result.errors}")
         
     print()
 
@@ -79,8 +106,8 @@ def data_analysis_example():
     print(f"  ⏱️  Time: {result.execution_time:.2f} seconds")
     print(f"  📝 Output: {result.output}")
     
-    if result.learnings:
-        print(f"  🧠 Learnings: {result.learnings}")
+    if result.errors:
+        print(f"  ❌ Errors: {result.errors}")
         
     print()
 
@@ -94,6 +121,14 @@ def interactive_agent_demo():
     print()
     
     agent = Agent("InteractiveAgent")
+    
+    # Register tools
+    agent.register_tool("web_search", web_search)
+    agent.register_tool("calculator", calculator)
+    agent.register_tool("data_analyzer", data_analyzer)
+    agent.register_tool("file_operations", file_operations)
+    agent.register_tool("code_executor", code_executor)
+    agent.register_tool("text_processor", text_processor)
     
     while True:
         try:
@@ -123,9 +158,6 @@ def interactive_agent_demo():
             if result.errors:
                 print(f"  ❌ Errors: {result.errors}")
                 
-            if result.learnings:
-                print(f"  🧠 Learnings: {result.learnings}")
-                
             print()
             
         except KeyboardInterrupt:
@@ -142,6 +174,14 @@ def agent_status_demo():
     print("=" * 50)
     
     agent = Agent("StatusDemoAgent")
+    
+    # Register tools
+    agent.register_tool("web_search", web_search)
+    agent.register_tool("calculator", calculator)
+    agent.register_tool("data_analyzer", data_analyzer)
+    agent.register_tool("file_operations", file_operations)
+    agent.register_tool("code_executor", code_executor)
+    agent.register_tool("text_processor", text_processor)
     
     # Run a few tasks to build up memory
     tasks = [
@@ -160,13 +200,12 @@ def agent_status_demo():
     print(f"\n📊 Agent Status:")
     print(f"  Name: {status['name']}")
     print(f"  Personality: {status['personality']}")
-    print(f"  Confidence: {status['confidence_level']:.2f}")
-    print(f"  Success Rate: {status['success_rate']:.2f}")
-    print(f"  Tasks Completed: {status['tasks_completed']}")
-    print(f"  Memory Size:")
-    print(f"    - Short-term: {status['memory_size']['short_term']}")
-    print(f"    - Long-term: {status['memory_size']['long_term']}")
-    print(f"    - Episodic: {status['memory_size']['episodic']}")
+    print(f"  Learning Rate: {status['learning_rate']:.2f}")
+    print(f"  Tools Available: {status['tools_available']}")
+    print(f"  Memory Stats:")
+    print(f"    - Short-term: {status['memory_stats']['short_term_count']}")
+    print(f"    - Long-term: {status['memory_stats']['long_term_count']}")
+    print(f"    - Episodic: {status['memory_stats']['episodic_count']}")
     
     print()
 

@@ -1,177 +1,151 @@
-# Agentic AI for Dummies 🚀
+# 🤖 MCP (Model Context Protocol) Example
 
-A simple, beginner-friendly example of how to build and use agentic AI systems.
+A simple example demonstrating how to use the Model Context Protocol (MCP) with an LLM to create an agentic AI system.
 
-## What is Agentic AI?
+## 🎯 What is MCP?
 
-Agentic AI refers to AI systems that can:
-- **Autonomously** perform tasks without constant human supervision
-- **Plan** and execute multi-step processes
-- **Adapt** to changing circumstances
-- **Learn** from their experiences
-- **Make decisions** based on goals and constraints
+Model Context Protocol (MCP) is a standard for connecting AI models to external tools and data sources. It enables:
+- **Tool Integration**: Connect LLMs to external APIs and services
+- **Context Management**: Maintain conversation history and context
+- **Autonomous Agents**: Create AI agents that can use tools independently
 
-Think of it like having a smart assistant that can take initiative and complete complex tasks on its own!
+## 🚀 Quick Start
 
-## 🎯 This Example
+### Prerequisites
+- Python 3.8+
+- Anthropic API key (get one from https://console.anthropic.com/)
 
-This project demonstrates a simple agentic AI system that can:
-1. **Analyze** a task or problem
-2. **Plan** a solution strategy
-3. **Execute** the plan step by step
-4. **Learn** from the results
-5. **Adapt** if things don't go as expected
+### Setup
+```bash
+# 1. Install dependencies
+pip install -r requirements.txt
+
+# 2. Set up your API key
+cp env_example.txt .env
+# Edit .env and add your ANTHROPIC_API_KEY
+
+# 3. Run the example
+python simple_mcp_agent.py
+```
 
 ## 📁 Project Structure
 
 ```
-AgenticAI/
+mcp_example/
 ├── README.md                 # This file
 ├── requirements.txt          # Python dependencies
-├── agent.py                 # Main agent implementation
-├── tools.py                 # Tools the agent can use
-├── examples/
-│   ├── simple_task.py       # Basic usage example
-│   ├── research_task.py     # Research example
-│   └── problem_solving.py   # Problem solving example
-└── config/
-    └── agent_config.json    # Agent configuration
+├── simple_mcp_agent.py      # Main MCP agent example
+├── tools/                   # MCP tools
+│   ├── __init__.py
+│   ├── calculator.py        # Calculator tool
+│   ├── web_search.py        # Web search tool
+│   └── weather.py           # Weather tool
+├── config/
+│   └── mcp_config.json      # MCP configuration
+└── env_example.txt          # Environment variables template
 ```
-
-## 🚀 Quick Start
-
-1. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-2. **Run a simple example:**
-   ```bash
-   python examples/simple_task.py
-   ```
-
-3. **Try the research example:**
-   ```bash
-   python examples/research_task.py
-   ```
 
 ## 🧠 How It Works
 
-### 1. **Task Analysis**
-The agent first understands what needs to be done:
+### 1. **MCP Agent Creation**
 ```python
-task = "Research the best programming languages for beginners"
-agent.analyze_task(task)
+from simple_mcp_agent import create_mcp_agent
+
+agent = create_mcp_agent()
 ```
 
-### 2. **Planning**
-The agent creates a step-by-step plan:
+### 2. **Tool Integration**
 ```python
-plan = agent.create_plan()
-# Result: [
-#   "1. Search for beginner-friendly programming languages",
-#   "2. Compare features and learning curves",
-#   "3. Research job market demand",
-#   "4. Compile recommendations"
-# ]
+# Tools are automatically registered with the agent
+agent.register_tool(calculator_tool)
+agent.register_tool(web_search_tool)
+agent.register_tool(weather_tool)
 ```
 
-### 3. **Execution**
-The agent executes each step:
+### 3. **Context Management**
 ```python
-results = agent.execute_plan(plan)
+# Agent maintains conversation context
+response = agent.chat("What's 15 * 23?")
+# Agent remembers previous interactions
 ```
 
-### 4. **Learning & Adaptation**
-The agent learns from the results and improves:
+### 4. **Autonomous Tool Usage**
 ```python
-agent.learn_from_results(results)
+# Agent decides which tools to use
+response = agent.chat("What's the weather in London and calculate 2^10?")
+# Agent uses weather tool and calculator tool automatically
 ```
 
-## 🛠️ Key Components
+## 🛠️ Available Tools
 
-### Agent Class
-- **Brain**: Processes information and makes decisions
-- **Memory**: Stores experiences and learned patterns
-- **Tools**: Capabilities to interact with the world
-- **Goals**: What the agent is trying to achieve
+| Tool | Purpose | Example |
+|------|---------|---------|
+| `calculator` | Mathematical calculations | `2 + 3 * 4` |
+| `web_search` | Search for information | `Python programming` |
+| `weather` | Get weather information | `London weather` |
 
-### Tools
-- **Web Search**: Find information online
-- **File Operations**: Read/write files
-- **Code Execution**: Run and test code
-- **Data Analysis**: Process and analyze data
+## 🎮 Examples
 
-### Memory System
-- **Short-term**: Current task context
-- **Long-term**: Learned patterns and experiences
-- **Episodic**: Specific task memories
-
-## 🎓 Learning Path
-
-1. **Start Simple**: Run the basic examples
-2. **Understand the Code**: Read through `agent.py`
-3. **Modify Tasks**: Change the example tasks
-4. **Add Tools**: Create new capabilities
-5. **Build Your Own**: Create your own agentic AI system
-
-## 🔧 Customization
-
-### Adding New Tools
+### Basic Usage
 ```python
-@tool
-def my_custom_tool(input_data):
-    """Description of what this tool does"""
-    # Your tool implementation
-    return result
+from simple_mcp_agent import create_mcp_agent
+
+# Create agent
+agent = create_mcp_agent()
+
+# Chat with agent
+response = agent.chat("What's 25 * 4?")
+print(response)
 ```
 
-### Modifying Agent Behavior
+### Tool Usage
 ```python
-# In agent.py
-class Agent:
-    def __init__(self, personality="helpful", risk_tolerance="medium"):
-        self.personality = personality
-        self.risk_tolerance = risk_tolerance
+# Agent uses tools automatically
+response = agent.chat("What's the weather in Tokyo and calculate 15^2?")
+# Agent will use weather tool and calculator tool
 ```
 
-### Creating Custom Tasks
-```python
-task = {
-    "goal": "Your specific goal",
-    "constraints": ["constraint1", "constraint2"],
-    "success_criteria": ["criteria1", "criteria2"]
-}
-```
+## 🔧 Key Concepts
 
-## 🎯 Real-World Applications
+### MCP Principles
+1. **Tool Integration**: Connect LLMs to external capabilities
+2. **Context Management**: Maintain conversation state
+3. **Autonomous Decision Making**: Agent chooses which tools to use
+4. **Standardized Interface**: Consistent tool communication
 
-- **Research Assistant**: Automatically gather and summarize information
-- **Code Helper**: Analyze code and suggest improvements
-- **Data Analyst**: Process and visualize data
-- **Content Creator**: Generate reports and presentations
-- **Problem Solver**: Break down complex problems into manageable steps
+### Agent Capabilities
+- **Tool Selection**: Automatically chooses appropriate tools
+- **Context Awareness**: Remembers conversation history
+- **Error Handling**: Graceful tool failure handling
+- **Response Generation**: Combines tool results into coherent answers
 
-## 🤝 Contributing
+## 🎯 Learning Objectives
 
-Feel free to:
-- Add new examples
-- Improve the agent's capabilities
-- Add new tools
-- Enhance the documentation
+### Technical Skills
+1. **MCP Implementation**: Understanding the protocol
+2. **Tool Development**: Creating custom tools
+3. **Context Management**: Maintaining conversation state
+4. **Error Handling**: Robust tool integration
 
-## 📚 Further Learning
+### Agentic AI Concepts
+1. **Autonomy**: Agent makes independent decisions
+2. **Tool Use**: Leveraging external capabilities
+3. **Planning**: Multi-step task execution
+4. **Learning**: Improving from interactions
 
-- **Multi-Agent Systems**: Multiple agents working together
-- **Reinforcement Learning**: Learning from rewards and penalties
-- **Natural Language Processing**: Better understanding of human language
-- **Computer Vision**: Understanding visual information
-- **Robotics**: Physical agentic AI systems
+## 🚀 Next Steps
 
-## 🎉 Have Fun!
+1. **Explore the code**: Understand MCP implementation
+2. **Add custom tools**: Create your own MCP tools
+3. **Extend the agent**: Add more sophisticated capabilities
+4. **Build applications**: Create real-world MCP agents
 
-This is just the beginning! Agentic AI is a powerful concept that's transforming how we interact with computers. Start simple, experiment, and build amazing things!
+## 📚 Resources
+
+- [MCP Documentation](https://modelcontextprotocol.io/)
+- [Anthropic Claude API](https://console.anthropic.com/)
+- [MCP Tools](https://github.com/modelcontextprotocol/tools)
 
 ---
 
-*Remember: The best way to learn is by doing. Don't be afraid to break things and experiment!* 🚀 
+**🎉 Ready to explore MCP-powered agentic AI!** 🚀 
