@@ -1,0 +1,146 @@
+{
+  "agent_settings": {
+    "default_personality": "helpful",
+    "max_execution_time": 300,
+    "confidence_threshold": 0.3,
+    "learning_rate": 0.1,
+    "memory_limit": 1000
+  },
+  "tool_settings": {
+    "web_search": {
+      "max_results": 10,
+      "timeout": 30,
+      "cache_results": true
+    },
+    "file_operations": {
+      "max_file_size": "10MB",
+      "allowed_extensions": [".txt", ".md", ".json", ".csv", ".py"],
+      "backup_files": true
+    },
+    "code_executor": {
+      "timeout": 60,
+      "sandbox_mode": true,
+      "allowed_languages": ["python", "javascript", "bash"]
+    },
+    "data_analyzer": {
+      "max_data_points": 10000,
+      "analysis_depth": "comprehensive",
+      "generate_visualizations": true
+    }
+  },
+  "memory_settings": {
+    "short_term_limit": 100,
+    "long_term_limit": 1000,
+    "episodic_limit": 500,
+    "forgetting_rate": 0.01
+  },
+  "planning_settings": {
+    "max_plan_steps": 20,
+    "planning_timeout": 60,
+    "risk_assessment": true,
+    "plan_optimization": true
+  },
+  "learning_settings": {
+    "enable_learning": true,
+    "pattern_recognition": true,
+    "adaptation_rate": 0.05,
+    "experience_weight": 0.8
+  },
+  "personalities": {
+    "helpful": {
+      "description": "Friendly and supportive agent",
+      "risk_tolerance": "low",
+      "detail_level": "high",
+      "interaction_style": "conversational"
+    },
+    "analytical": {
+      "description": "Data-driven and precise agent",
+      "risk_tolerance": "medium",
+      "detail_level": "very_high",
+      "interaction_style": "formal"
+    },
+    "creative": {
+      "description": "Innovative and imaginative agent",
+      "risk_tolerance": "high",
+      "detail_level": "medium",
+      "interaction_style": "enthusiastic"
+    },
+    "thorough": {
+      "description": "Comprehensive and methodical agent",
+      "risk_tolerance": "low",
+      "detail_level": "very_high",
+      "interaction_style": "systematic"
+    },
+    "precise": {
+      "description": "Accurate and exact agent",
+      "risk_tolerance": "very_low",
+      "detail_level": "very_high",
+      "interaction_style": "technical"
+    },
+    "balanced": {
+      "description": "Well-rounded and adaptable agent",
+      "risk_tolerance": "medium",
+      "detail_level": "high",
+      "interaction_style": "professional"
+    },
+    "innovative": {
+      "description": "Forward-thinking and experimental agent",
+      "risk_tolerance": "high",
+      "detail_level": "medium",
+      "interaction_style": "inspiring"
+    }
+  },
+  "task_types": {
+    "research": {
+      "description": "Information gathering and analysis tasks",
+      "default_tools": ["web_search", "text_processor"],
+      "success_metrics": ["completeness", "accuracy", "relevance"]
+    },
+    "programming": {
+      "description": "Code development and debugging tasks",
+      "default_tools": ["code_executor", "file_operations"],
+      "success_metrics": ["functionality", "efficiency", "readability"]
+    },
+    "analysis": {
+      "description": "Data analysis and insight generation tasks",
+      "default_tools": ["data_analyzer", "calculator"],
+      "success_metrics": ["insights", "accuracy", "actionability"]
+    },
+    "optimization": {
+      "description": "Problem optimization and efficiency improvement tasks",
+      "default_tools": ["calculator", "data_analyzer"],
+      "success_metrics": ["improvement", "efficiency", "feasibility"]
+    },
+    "creative": {
+      "description": "Creative problem solving and innovation tasks",
+      "default_tools": ["text_processor", "web_search"],
+      "success_metrics": ["originality", "feasibility", "impact"]
+    }
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    "file_output": true,
+    "console_output": true
+  },
+  "examples": {
+    "simple_tasks": [
+      "Find information about Python programming",
+      "Calculate the factorial of 10",
+      "Analyze a simple dataset",
+      "Create a basic web page"
+    ],
+    "intermediate_tasks": [
+      "Research machine learning applications in healthcare",
+      "Design a database schema for an e-commerce site",
+      "Optimize a delivery route for multiple locations",
+      "Debug a complex software issue"
+    ],
+    "advanced_tasks": [
+      "Design a scalable microservices architecture",
+      "Analyze customer behavior patterns for business insights",
+      "Create an AI-powered recommendation system",
+      "Develop a comprehensive security strategy"
+    ]
+  }
+} 
